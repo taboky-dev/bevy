@@ -44,9 +44,17 @@ pub mod prelude {
 }
 
 use bevy_app::prelude::*;
+use bevy_ecs::schedule::SystemSet;
 
 #[cfg(feature = "serialize")]
 use {bevy_asset::AssetApp, bevy_ecs::schedule::IntoScheduleConfigs};
+
+/// System set for scene spawning
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub enum SceneSystems {
+    Extract,
+    Process,
+}
 
 /// Plugin that provides scene functionality to an [`App`].
 #[derive(Default)]
@@ -59,7 +67,21 @@ impl Plugin for ScenePlugin {
             .init_asset::<Scene>()
             .init_asset_loader::<SceneLoader>()
             .init_resource::<SceneSpawner>()
-            .add_systems(SpawnScene, (scene_spawner, scene_spawner_system).chain());
+            .configure_sets(
+                SpawnScene,
+                (
+                    SceneSystems::Extract,
+                    SceneSystems::Process,
+                )
+                    .chain()
+            )
+            .add_systems(
+                SpawnScene,
+                (
+                    scene_spawner.in_set(SceneSystems::Extract),
+                    scene_spawner_system.in_set(SceneSystems::Process),
+                )
+            );
 
         // Register component hooks for DynamicSceneRoot
         app.world_mut()
