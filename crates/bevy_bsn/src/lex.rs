@@ -7,7 +7,7 @@ use nom::{
     },
     character::complete::{alpha1, alphanumeric1, char, digit1, multispace0, one_of},
     combinator::{opt, recognize},
-    multi::many0_count,
+    multi::{many0, many0_count},
     sequence::{delimited, pair},
     IResult, Input, Parser,
 };
@@ -230,12 +230,16 @@ fn lex_int(input: Span) -> IResult<Span, SpannedToken> {
 }
 
 fn lex_float(input: Span) -> IResult<Span, SpannedToken> {
+    fn digit_with_underscore(input: Span) -> IResult<Span, Span> {
+        recognize(pair(digit1, many0(pair(char('_'), digit1)))).parse(input)
+    }
+
     let (rest, raw) = recognize((
         opt(one_of("+-")),
-        opt(digit1),
+        opt(digit_with_underscore),
         char('.'),
-        opt(digit1),
-        opt((one_of("eE"), opt(one_of("+-")), digit1)),
+        opt(digit_with_underscore),
+        opt((one_of("eE"), opt(one_of("+-")), digit_with_underscore)),
     ))
     .parse(input.clone())?;
 
@@ -247,7 +251,7 @@ fn lex_float(input: Span) -> IResult<Span, SpannedToken> {
         )));
     }
 
-    let value: f64 = raw.fragment.parse().map_err(|_| {
+    let value: f64 = raw.fragment.replace('_', "").parse().map_err(|_| {
         nom::Err::Error(nom::error::Error::new(input, nom::error::ErrorKind::Float))
     })?;
 
@@ -356,7 +360,7 @@ mod tests {
     fn lex() {
         let results = Span::from(
             r#"true false Foo foo_bar1 Foo2Bar { }
-            ( ) [ ] :: : , # @ 1 10 0.1 1.0 10.1
+            ( ) [ ] :: : , # @ 1 10 0.1 1.0 10.1 1_0.1_0
             "hello" "a \" \t"
             - --
             "#,
@@ -387,6 +391,7 @@ mod tests {
                 Token::Float(0.1),
                 Token::Float(1.0),
                 Token::Float(10.1),
+                Token::Float(10.10),
                 Token::StringLit("hello".to_string()),
                 Token::StringLit("a \" \t".to_string()),
                 Token::Minus,

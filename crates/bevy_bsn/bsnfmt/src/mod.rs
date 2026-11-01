@@ -8,28 +8,27 @@ pub mod utils;
 #[cfg(test)]
 mod tests {
     use super::traits::BsnFmt;
-    use crate::_bsn::types::BsnRoot;
+    use bevy_bsn::{
+        parse_stream::{Parse, ParseStream},
+        span::Span,
+        types::BsnRoot,
+    };
     use pretty_assertions::assert_eq;
-    use proc_macro2::TokenStream;
-    use std::str::FromStr;
-    use syn::parse2;
+
+    fn format(input: &str) -> String {
+        let mut parse_stream = ParseStream::from(Span::from(input));
+        let ast: BsnRoot = BsnRoot::parse(&mut parse_stream).unwrap();
+        ast.fmt(0, 0)
+    }
 
     macro_rules! test_fmt {
         ($test_name:ident, $parser:ident, $input:expr, $expected:expr) => {
             #[test]
             fn $test_name() {
-                // Arrange
                 let input = $input;
                 let expected = $expected.trim_start_matches('\n').trim_end();
+                let res = format(input);
 
-                let tokens = TokenStream::from_str(input)
-                    .expect("Failed to lex input string into TokenStream");
-                let ast: $parser = parse2(tokens).expect(concat!("Failed to parse input into ", stringify!($parser)));
-
-                // Act
-                let res = ast.fmt(0, 0);
-
-                // Assert
                 assert_eq!(
                     res, expected,
                     "\n\n BSN fmt result does not match expected. \n\ngot:\n[{}]\n\nexpected:\n[{}]\n",

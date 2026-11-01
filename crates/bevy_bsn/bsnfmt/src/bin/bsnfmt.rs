@@ -3,28 +3,6 @@
 #[path = "../mod.rs"]
 mod bsnfmt;
 
-#[path = "../../codegen.rs"]
-mod bsn_codegen;
-#[path = "../../parse.rs"]
-mod bsn_parse;
-#[path = "../../types.rs"]
-mod bsn_types;
-
-#[expect(unused, reason = "Only using a few things from these modules")]
-mod _bsn {
-    pub mod types {
-        pub use crate::bsn_types::*;
-    }
-
-    pub mod parse {
-        pub use crate::bsn_parse::*;
-    }
-
-    pub mod codegen {
-        pub use crate::bsn_codegen::*;
-    }
-}
-
 use bsnfmt::{types::*, utils::col_to_offset};
 use clap::Parser;
 use similar::{ChangeTag, TextDiff};

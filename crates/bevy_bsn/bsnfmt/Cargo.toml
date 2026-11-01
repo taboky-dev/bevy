@@ -1,0 +1,24 @@
+[package]
+name = "bsnfmt"
+version = "0.0.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "bsnfmt"
+path = "src/bin/bsnfmt.rs"
+
+[dependencies]
+bevy_bsn = { path = "../" }
+clap = { version = "4", features = ["derive"] }
+prettyplease = "0.3"
+similar = { version = "3.2.1", features = ["inline"] }
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "3", features = ["full", "extra-traits", "visit"] }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+
+[lints]
+workspace = true
