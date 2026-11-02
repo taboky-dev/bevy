@@ -6,7 +6,7 @@ use nom::{
         tag_no_case,
     },
     character::complete::{alpha1, alphanumeric1, char, digit1, multispace0, one_of},
-    combinator::{opt, recognize},
+    combinator::{not, opt, recognize},
     multi::{many0, many0_count},
     sequence::{delimited, pair},
     IResult, Input, Parser,
@@ -28,6 +28,10 @@ pub enum Token {
     Int(i128),
     /// Floating point: 0.1, .1, 10.1
     Float(f64),
+    /// Range: ..
+    Range,
+    /// Range inclusive: ..=
+    RangeInclusive,
     /// Left bracket: [
     LBracket,
     /// Right bracket: ]
@@ -92,6 +96,8 @@ fn lex_token(input: Span) -> IResult<Span, SpannedToken> {
         lex_r_paren,
         lex_l_bracket,
         lex_r_bracket,
+        lex_range_inclusive,
+        lex_range,
         lex_comma,
         lex_double_colon,
         lex_colon,
@@ -237,6 +243,7 @@ fn lex_float(input: Span) -> IResult<Span, SpannedToken> {
     let (rest, raw) = recognize((
         opt(one_of("+-")),
         opt(digit_with_underscore),
+        not(tag("..")),
         char('.'),
         opt(digit_with_underscore),
         opt((one_of("eE"), opt(one_of("+-")), digit_with_underscore)),
@@ -321,6 +328,16 @@ fn lex_string(input: Span) -> IResult<Span, SpannedToken> {
     }
 }
 
+fn lex_range(input: Span) -> IResult<Span, SpannedToken> {
+    let (rest, value) = tag("..")(input)?;
+    Ok((rest, Token::Range.spanned(value)))
+}
+
+fn lex_range_inclusive(input: Span) -> IResult<Span, SpannedToken> {
+    let (rest, value) = tag("..=")(input)?;
+    Ok((rest, Token::RangeInclusive.spanned(value)))
+}
+
 /// An error that occurs when lexing BSN.
 #[derive(Error, Debug)]
 pub enum LexError {
@@ -360,7 +377,7 @@ mod tests {
     fn lex() {
         let results = Span::from(
             r#"true false Foo foo_bar1 Foo2Bar { }
-            ( ) [ ] :: : , # @ 1 10 0.1 1.0 10.1 1_0.1_0
+            ( ) [ ] :: : .. ..= , # @ 1 10 1..=5 0.1 1.0 10.1 1_0.1_0 1.0..5.0
             "hello" "a \" \t"
             - --
             "#,
@@ -383,15 +400,23 @@ mod tests {
                 Token::RBracket,
                 Token::DoubleColon,
                 Token::Colon,
+                Token::Range,
+                Token::RangeInclusive,
                 Token::Comma,
                 Token::Hash,
                 Token::At,
                 Token::Int(1),
                 Token::Int(10),
+                Token::Int(1),
+                Token::RangeInclusive,
+                Token::Int(5),
                 Token::Float(0.1),
                 Token::Float(1.0),
                 Token::Float(10.1),
                 Token::Float(10.10),
+                Token::Float(1.0),
+                Token::Range,
+                Token::Float(5.0),
                 Token::StringLit("hello".to_string()),
                 Token::StringLit("a \" \t".to_string()),
                 Token::Minus,
