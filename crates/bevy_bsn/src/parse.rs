@@ -1,12 +1,9 @@
 use crate::{
     parse_stream::{Parse, ParseError, ParseStream},
     types::{
-        Bool, Colon, Comma, DoubleColon, DoubleMinus, Float, Hash, Ident, Int, LBrace, LBracket,
-        LParen, RBrace, RParen, StringLit,
-    },
-    types::{
-        Bsn, BsnEntry, BsnFields, BsnNamedField, BsnRoot, BsnScene, BsnSceneList,
-        BsnSceneListItems, BsnType, BsnValue, Path, PathSegment,
+        Bool, Bsn, BsnEntry, BsnFields, BsnNamedField, BsnRoot, BsnScene, BsnSceneList,
+        BsnSceneListItems, BsnType, BsnValue, Colon, Comma, DoubleColon, DoubleMinus, Float, Hash,
+        Ident, Int, LBrace, LBracket, LParen, Path, PathSegment, RBrace, RParen, Range, StringLit,
     },
 };
 
@@ -115,10 +112,22 @@ impl Parse for BsnValue {
     fn parse<'a>(input: &mut ParseStream<'a>) -> Result<Self, ParseError> {
         Ok(if input.peek::<Float>() {
             let value = input.parse::<Float>()?;
-            BsnValue::Float(value.0)
+            if input.peek::<Range>() {
+                let range = input.parse::<Range>()?;
+                let end = input.parse::<Float>()?;
+                BsnValue::FloatRange(value.0, end.0, range.0)
+            } else {
+                BsnValue::Float(value.0)
+            }
         } else if input.peek::<Int>() {
             let value = input.parse::<Int>()?;
-            BsnValue::Int(value.0)
+            if input.peek::<Range>() {
+                let range = input.parse::<Range>()?;
+                let end = input.parse::<Int>()?;
+                BsnValue::IntegerRange(value.0, end.0, range.0)
+            } else {
+                BsnValue::Int(value.0)
+            }
         } else if input.peek::<StringLit>() {
             let value = input.parse::<StringLit>()?;
             BsnValue::String(value.0)

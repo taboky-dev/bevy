@@ -92,6 +92,10 @@ pub enum BsnValue {
     String(String),
     /// A BSN type
     Type(BsnType),
+    /// A floating point range
+    FloatRange(f64, f64, bool),
+    /// A integer range
+    IntegerRange(i128, i128, bool),
 }
 
 /// A path to a type. This follows Rust conventions.
@@ -274,6 +278,33 @@ impl_parse_arg_token!(Int);
 #[derive(Debug, Clone, PartialEq)]
 pub struct Float(pub f64);
 impl_parse_arg_token!(Float);
+
+/// Ranges: .., ..=
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Range(pub bool);
+
+impl Parse for Range {
+    fn parse<'a>(input: &mut ParseStream<'a>) -> Result<Self, ParseError> {
+        match input.next_token()? {
+            Some(token) => match token.token {
+                Token::Range => Ok(Range(false)),
+                Token::RangeInclusive => Ok(Range(true)),
+                _ => Err(ParseError::UnexpectedToken(token.into())),
+            },
+            None => Err(ParseError::EndOfInput),
+        }
+    }
+}
+
+impl Peek for Range {
+    fn peek(input: &mut ParseStream) -> bool {
+        if let Some(token) = input.peek_token() {
+            matches!(token.token, Token::Range | Token::RangeInclusive)
+        } else {
+            false
+        }
+    }
+}
 
 /// Left bracket: [
 #[derive(Debug, Clone, PartialEq, Eq)]
