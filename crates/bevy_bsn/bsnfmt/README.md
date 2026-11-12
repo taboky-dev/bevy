@@ -17,7 +17,7 @@ bsnfmt ./path/to/module.rs
 Write:
 
 ```sh
-bsnfmt ./path/to/module.rs --write
+bsnfmt --write ./path/to/module.rs
 ```
 
 ## Editor integration

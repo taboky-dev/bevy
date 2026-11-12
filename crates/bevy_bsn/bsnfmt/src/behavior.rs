@@ -1,4 +1,5 @@
 use super::{
+    format_tokens,
     traits::BsnFmt,
     types::{BsnVisitor, Edit},
     utils::*,
@@ -26,22 +27,22 @@ impl<'ast, 'a> Visit<'ast> for BsnVisitor<'a> {
         };
 
         let base_indent: usize = line_indent;
-        let formatted = if is_bsn {
-            syn::parse2::<BsnRoot>(mac.tokens.clone())
-                .ok()
-                .map(|ast| ast.fmt(base_indent, 0))
+        let formatted_res = if is_bsn {
+            format_tokens::<BsnRoot>(mac.tokens.clone(), base_indent, 0)
         } else {
-            syn::parse2::<BsnListRoot>(mac.tokens.clone())
-                .ok()
-                .map(|ast| ast.fmt(base_indent, 0))
+            format_tokens::<BsnListRoot>(mac.tokens.clone(), base_indent, 0)
         };
 
-        let Some(new_text) = formatted else {
-            eprintln!(
-                "\x1b[1;31mFailed to parse bsn block at line {}\x1b[0m",
-                mac.span().start().line
-            );
-            return visit_macro(self, mac);
+        let formatted = match formatted_res {
+            Ok(res) => res,
+            Err(e) => {
+                // TODO: Print the error for more details
+                eprintln!(
+                    "\x1b[1;31mFailed to parse bsn block at line {}: \x1b[0m\n\t- {e}",
+                    mac.span().start().line,
+                );
+                return visit_macro(self, mac);
+            }
         };
 
         let mac_start_byte =
@@ -72,12 +73,12 @@ impl<'ast, 'a> Visit<'ast> for BsnVisitor<'a> {
         let (end_line, end_col) = offset_to_col(self.source, end_byte);
         let original = &self.source[start_byte..end_byte];
 
-        let r#final = if is_bsn_list && !new_text.contains('\n') {
-            new_text.trim().to_string()
+        let r#final = if is_bsn_list && !formatted.contains('\n') {
+            formatted.trim().to_string()
         } else {
             format!(
                 "\n{}\n{}",
-                new_text.trim_start_matches('\n').trim_end(),
+                formatted.trim_start_matches('\n').trim_end(),
                 " ".repeat(line_indent)
             )
         };
@@ -179,12 +180,12 @@ impl BsnFmt for BsnSceneListItems {
 }
 
 impl BsnFmt for BsnEntry {
-    fn fmt(&self, base: usize, level: usize) -> String {
+    fn fmt(&self, base_indent: usize, level: usize) -> String {
         match self {
             BsnEntry::Name(ident) => format!("#{}", ident.0),
-            BsnEntry::FromTemplatePatch(ty) => ty.fmt(base, level),
+            BsnEntry::FromTemplatePatch(ty) => ty.fmt(base_indent, level),
             BsnEntry::TemplatePatch(ty) => {
-                format!("@{}", ty.fmt(base, level))
+                format!("@{}", ty.fmt(base_indent, level))
             }
             BsnEntry::TemplateConstructor {
                 constructor,
@@ -203,27 +204,29 @@ impl BsnFmt for BsnEntry {
                 out.push_str("::");
                 out.push_str(&constructor.function.to_string());
 
-                let args = constructor.args.fmt(base, level);
+                let args = constructor.args.fmt(base_indent, level);
                 out.push('(');
                 out.push_str(&args);
                 out.push(')');
 
                 if let Some(dot_expression) = dot_expression {
-                    out.push_str(&fmt_rust_dot_expr(dot_expression));
+                    out.push_str(&fmt_bevy_dot_expr(dot_expression, base_indent, level + 1));
                 }
 
                 out
             }
             BsnEntry::TemplateValue(token_stream) => {
-                fmt_rust_expr(token_stream, base, level).trim().to_string()
+                fmt_rust_expr(token_stream, base_indent, level)
+                    .trim()
+                    .to_string()
             }
-            BsnEntry::Function(fn_call) => fn_call.fmt(base, level),
-            BsnEntry::UncachedScene(s) | BsnEntry::CachedScene(s) => s.fmt(base, level),
+            BsnEntry::Function(fn_call) => fn_call.fmt(base_indent, level),
+            BsnEntry::UncachedScene(s) | BsnEntry::CachedScene(s) => s.fmt(base_indent, level),
             BsnEntry::RelatedSceneList(r) => {
                 format!(
                     "{} {}",
                     fmt_quote(&r.relationship_path),
-                    r.scene_list.fmt(base, level)
+                    r.scene_list.fmt(base_indent, level)
                 )
             }
         }

@@ -1,9 +1,57 @@
-#![allow(dead_code, reason = "test")]
+//! BSN Formatter
 
 mod behavior;
 mod traits;
 pub mod types;
 pub mod utils;
+
+use crate::traits::BsnFmt;
+use proc_macro2::TokenStream;
+use std::{fmt::Display, str::FromStr};
+use syn::parse::Parse;
+
+/// Errors that can occur when formatting BSN
+#[derive(Debug)]
+pub enum FormatterError {
+    /// Lexing error
+    Lexing(proc_macro2::LexError),
+    /// Parsing error
+    Parsing(String, syn::Error),
+}
+
+impl Display for FormatterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FormatterError::Lexing(e) => {
+                write!(f, "Failed to lex input string into TokenStream: {}", e)
+            }
+            FormatterError::Parsing(r#type, e) => {
+                write!(f, "Failed to parse input into {}: {}", r#type, e)
+            }
+        }
+    }
+}
+
+/// TODO
+pub fn format_tokens<P: BsnFmt + Parse>(
+    input: TokenStream,
+    base_indent: usize,
+    level: usize,
+) -> Result<String, FormatterError> {
+    syn::parse2::<P>(input)
+        .map_err(|e| FormatterError::Parsing(std::any::type_name::<P>().to_owned(), e))
+        .map(|ast| ast.fmt(base_indent, level))
+}
+
+/// TODO
+pub fn format_str<P: BsnFmt + Parse>(
+    input: &str,
+    base_indent: usize,
+    level: usize,
+) -> Result<String, FormatterError> {
+    let tokens = TokenStream::from_str(input).map_err(FormatterError::Lexing)?;
+    format_tokens::<P>(tokens, base_indent, level)
+}
 
 #[cfg(test)]
 mod tests {
@@ -28,7 +76,6 @@ mod tests {
                 let input = $input;
                 let expected = $expected.trim_start_matches('\n').trim_end();
                 let res = format(input);
-
                 assert_eq!(
                     res, expected,
                     "\n\n BSN fmt result does not match expected. \n\ngot:\n[{}]\n\nexpected:\n[{}]\n",
