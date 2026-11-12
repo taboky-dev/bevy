@@ -3,7 +3,7 @@
 ## Installation
 
 ```sh
-cargo install --path ./crates/bevy_scene/bsnfmt
+cargo install --path ./crates/bevy_bsn/bsnfmt
 ```
 
 ## Usage

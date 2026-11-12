@@ -4,7 +4,7 @@ use super::{
     types::{BsnVisitor, Edit},
     utils::*,
 };
-use crate::_bsn::types::*;
+use bevy_bsn::types::*;
 use syn::{
     spanned::Spanned,
     visit::{visit_macro, Visit},
@@ -98,20 +98,18 @@ impl<'ast, 'a> Visit<'ast> for BsnVisitor<'a> {
     }
 }
 
-impl BsnFmt for BsnRoot {
-    fn fmt(&self, base: usize, level: usize) -> String {
-        self.0.fmt_content(base, level + 1).trim_end().to_string()
-    }
+fn bsn_fmt_content(bsn: &Bsn, base: usize, level: usize) -> String {
+    bsn.entries.iter().fold(String::new(), |mut out, entry| {
+        out.push_str(&indent(base, level));
+        out.push_str(&entry.fmt(base, level));
+        out.push('\n');
+        out
+    })
 }
 
-impl Bsn {
-    fn fmt_content(&self, base: usize, level: usize) -> String {
-        self.entries.iter().fold(String::new(), |mut out, entry| {
-            out.push_str(&indent(base, level));
-            out.push_str(&entry.fmt(base, level));
-            out.push('\n');
-            out
-        })
+impl BsnFmt for BsnRoot {
+    fn fmt(&self, base: usize, level: usize) -> String {
+        bsn_fmt_content(&self.0, base, level).trim_end().to_string()
     }
 }
 
@@ -122,7 +120,7 @@ impl BsnFmt for Bsn {
         }
 
         let mut out = String::new();
-        out.push_str(&self.fmt_content(base, level));
+        out.push_str(&bsn_fmt_content(self, base, level));
         out
     }
 }
@@ -184,7 +182,7 @@ impl BsnFmt for BsnSceneListItems {
 impl BsnFmt for BsnEntry {
     fn fmt(&self, base_indent: usize, level: usize) -> String {
         match self {
-            BsnEntry::Name(ident) => format!("#{}", ident),
+            BsnEntry::Name(ident) => format!("#{}", ident.0),
             BsnEntry::FromTemplatePatch(ty) => ty.fmt(base_indent, level),
             BsnEntry::TemplatePatch(ty) => {
                 format!("@{}", ty.fmt(base_indent, level))
@@ -317,7 +315,6 @@ impl BsnFmt for BsnValue {
 
 impl BsnFmt for BsnFnCall {
     fn fmt(&self, base_indent: usize, level: usize) -> String {
-        use quote::ToTokens;
         let mut out = format!("{}", self.path.to_token_stream());
         out.push('(');
         out.push_str(&self.args.fmt(base_indent, level));

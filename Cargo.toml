@@ -25,7 +25,7 @@ members = [
   "crates/bevy_ecs/compile_fail",
   "crates/bevy_reflect/compile_fail",
   # BSN CLI formatter
-  "crates/bevy_scene/bsnfmt",
+  "crates/bevy_bsn/bsnfmt",
   # Examples of compiling Bevy for mobile platforms.
   "examples/mobile",
   # Examples of using Bevy on no_std platforms.

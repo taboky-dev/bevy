@@ -1,29 +1,4 @@
-#![allow(
-    unused,
-    reason = "Importing modules from bevy_scene_macros, but only using a few types and trait implementations"
-)]
 //! BSN Formatter
-
-#[path = "../../macros/src/bsn/codegen.rs"]
-mod bsn_codegen;
-#[path = "../../macros/src/bsn/parse.rs"]
-mod bsn_parse;
-#[path = "../../macros/src/bsn/types.rs"]
-mod bsn_types;
-
-/// BSN internals
-mod _bsn {
-    #![allow(unused, reason = "Internal modules")]
-    pub mod codegen {
-        pub use crate::bsn_codegen::*;
-    }
-    pub mod parse {
-        pub use crate::bsn_parse::*;
-    }
-    pub mod types {
-        pub use crate::bsn_types::*;
-    }
-}
 
 mod behavior;
 mod traits;
@@ -80,9 +55,19 @@ pub fn format_str<P: BsnFmt + Parse>(
 
 #[cfg(test)]
 mod tests {
-    use super::format_str;
-    use crate::_bsn::types::BsnRoot;
+    use super::traits::BsnFmt;
+    use bevy_bsn::{
+        parse_stream::{Parse, ParseStream},
+        span::Span,
+        types::BsnRoot,
+    };
     use pretty_assertions::assert_eq;
+
+    fn format(input: &str) -> String {
+        let mut parse_stream = ParseStream::from(Span::from(input));
+        let ast: BsnRoot = BsnRoot::parse(&mut parse_stream).unwrap();
+        ast.fmt(0, 0)
+    }
 
     macro_rules! test_fmt {
         ($test_name:ident, $parser:ident, $input:expr, $expected:expr) => {
@@ -90,7 +75,7 @@ mod tests {
             fn $test_name() {
                 let input = $input;
                 let expected = $expected.trim_start_matches('\n').trim_end();
-                let res = format_str::<$parser>(input, 0, 0).unwrap();
+                let res = format(input);
                 assert_eq!(
                     res, expected,
                     "\n\n BSN fmt result does not match expected. \n\ngot:\n[{}]\n\nexpected:\n[{}]\n",
